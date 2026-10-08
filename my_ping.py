@@ -16,21 +16,22 @@ def checksum(pkt_data):
     checksum = (checksum >> 16) + (checksum & 0xFFFF)  #overflow plus lower 16 bits  
     checksum += (checksum >> 16)
 
-    return checksum & 0xFFFF            
+    return ~checksum & 0xFFFF            
 
-def create_icmp_packet(pkt_id, seq_num):
+def create_icmp_packet(pkt_id, seq_num, data_bytes):
+    #An icmp packet header needs: Type, Code, Checksum                                                             
     icmp_type = 8
     icmp_code = 0
-    checksum = 0
+    check_sum = 0
 
-    payload = struct.pack("!d")
+    data = b"\x00" * data_bytes
 
-    header = struct.pack('!BBHHH', icmp_type, icmp_code, checksum, pkt_id, seq_num)
+    header = struct.pack('!BBHHH', icmp_type, icmp_code, check_sum, pkt_id, seq_num)
 
-    checksum = (header + payload) 
-    header = struct.pack('!BBHHH', icmp_type, icmp_code, checksum, pkt_id, seq_num)
+    check_sum = checksum(header + data) 
+    header = struct.pack('!BBHHH', icmp_type, icmp_code, check_sum, pkt_id, seq_num)
 
-    return header + payload 
+    return header + data 
 
 def send_ping(dest_ip):
     raw_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
