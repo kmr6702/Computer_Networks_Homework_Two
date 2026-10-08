@@ -54,6 +54,26 @@ def send_ping(dest_ip, pkt_size, seq_num):
     raw_socket.sendto(packet, (dest_ip, 0))
 
     return raw_socket, send_time, pkt_id, seq_num
+
+def rcv_ping(raw_socket, send_time, pkt_id, seq_num, timeout):
+    pkt_data, ip_address = raw_socket.recvfrom(1024)
     
+    rcv_time = time.monotonic()
+    ip_header_length = (pkt_data[0] & 0x0F) * 4
+    icmp_header = pkt_data[ip_header_length:ip_header_length + 8]
+
+    type = int.from_bytes(icmp_header[0:1])
+    code = int.from_bytes(icmp_header[1:2])
+    checksum = int.from_bytes(icmp_header[2:4])
+    rcv_id = int.from_bytes(icmp_header[4:6])
+    rec_seq_num = int.from_bytes(icmp_header[6:8])
+
+    
+
+    if(type == 0 and pkt_id == rcv_id and seq_num == rec_seq_num):
+        rtt = (rcv_time - send_time) * 1000
+        print(f"Reply from {ip_address[0]}: seq={rec_seq_num} time={rtt:.2f}ms")
+
+
 if __name__ == "__main__":
     main()
