@@ -13,6 +13,50 @@ import argparse
 def main():
     pkt_recieved = 0
 
+    parser=argparse.ArgumentParser()
+
+    parser.add_argument("-c", "--count", type=int)
+    parser.add_argument("-i", "--wait", type=float, default=1)
+    parser.add_argument("-s", "--size", type=int, default=56)
+    parser.add_argument("-t", "--timeout", type=float)
+
+    parser.add_argument("dest_ip")
+
+    args = parser.parse_args()
+
+    dest_ip = args.dest_ip
+    count = args.count
+    wait = args.wait
+    pkt_size = args.size 
+    timeout = args.timeout 
+
+    pkt_id = os.getpid() & 0xFFFF
+    seq_num = 1
+    start_time = time.monotonic()
+
+    try:
+        while True:
+            if count is not None and pkt_recieved >= count:
+                break 
+
+            if timeout is not None and time.monotonic() - start_time >= timeout: 
+                break 
+
+            raw_socket, send_time, pkt_id, seq_num = send_ping(dest_ip, pkt_size, seq_num)
+
+            try:
+                if rcv_ping(raw_socket, send_time, pkt_id, seq_num):
+                    pkt_received += 1
+            finally:
+                raw_socket.close()
+
+            seq_num += 1
+            time.sleep(wait)
+    except KeyboardInterrupt:
+        print("\n End of Ping")
+
+
+
 def checksum(pkt_data):
     #Make the packet an even length if it is not already 
     if len(pkt_data) % 2:
@@ -55,7 +99,7 @@ def send_ping(dest_ip, pkt_size, seq_num):
 
     return raw_socket, send_time, pkt_id, seq_num
 
-def rcv_ping(raw_socket, send_time, pkt_id, seq_num, timeout):
+def rcv_ping(raw_socket, send_time, pkt_id, seq_num):
     pkt_data, ip_address = raw_socket.recvfrom(1024)
     
     rcv_time = time.monotonic()
@@ -68,12 +112,9 @@ def rcv_ping(raw_socket, send_time, pkt_id, seq_num, timeout):
     rcv_id = int.from_bytes(icmp_header[4:6])
     rec_seq_num = int.from_bytes(icmp_header[6:8])
 
-    
-
     if(type == 0 and pkt_id == rcv_id and seq_num == rec_seq_num):
         rtt = (rcv_time - send_time) * 1000
         print(f"Reply from {ip_address[0]}: seq={rec_seq_num} time={rtt:.2f}ms")
-
 
 if __name__ == "__main__":
     main()
