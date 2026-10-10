@@ -4,12 +4,6 @@ import os
 import time
 import argparse
 
-
-# count(- c) : Stop after sending (and receiving) count ECHO_RESPONSE packets. If this option is not specified, ping will operate until interrupted.
-# wait(- i) : Wait for wait seconds between sending each packet. Default is one second.
-# packetsize(- s) : Specify the number of data bytes to be sent. Default is 56 (64 ICMP data bytes including the header).
-# timeout (-t) : Specify a timeout in seconds before ping exits regardless of how many packets have been received.
-
 def main():
     pkt_recieved = 0
 
@@ -19,8 +13,7 @@ def main():
     parser.add_argument("-i", "--wait", type=float, default=1)
     parser.add_argument("-s", "--size", type=int, default=56)
     parser.add_argument("-t", "--timeout", type=float)
-
-    parser.add_argument("dest_ip")
+    parser.add_argument("dest_ip", required=True)
 
     args = parser.parse_args()
 
@@ -46,7 +39,7 @@ def main():
 
             try:
                 if rcv_ping(raw_socket, send_time, pkt_id, seq_num):
-                    pkt_received += 1
+                    pkt_recieved += 1
             finally:
                 raw_socket.close()
 
@@ -115,6 +108,9 @@ def rcv_ping(raw_socket, send_time, pkt_id, seq_num):
     if(type == 0 and pkt_id == rcv_id and seq_num == rec_seq_num):
         rtt = (rcv_time - send_time) * 1000
         print(f"Reply from {ip_address[0]}: seq={rec_seq_num} time={rtt:.2f}ms")
+        return True
+
+    return False
 
 if __name__ == "__main__":
     main()
