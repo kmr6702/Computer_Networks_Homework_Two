@@ -1,5 +1,4 @@
 import socket
-import struct
 import time 
 import argparse 
 
@@ -43,6 +42,9 @@ def main():
                     is_dest_reached = True
 
         print()
+        if args.summary: 
+            print(f"{unaswered} probes answered")
+            
         if is_dest_reached:
             break
 
