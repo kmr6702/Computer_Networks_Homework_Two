@@ -8,7 +8,7 @@ def main():
     pkt_recieved = 0
 
     parser=argparse.ArgumentParser()
-
+    #Add arguments values for each required flags
     parser.add_argument("-c", "--count", type=int)
     parser.add_argument("-i", "--wait", type=float, default=1)
     parser.add_argument("-s", "--size", type=int, default=56)
@@ -29,9 +29,11 @@ def main():
 
     try:
         while True:
+            #Stops sending pings if the set amount of packets to be recieved is reached 
             if count is not None and pkt_recieved >= count:
                 break 
 
+            #Stops sending pings if the set timeout is reached 
             if timeout is not None and time.monotonic() - start_time >= timeout: 
                 break 
 
@@ -80,6 +82,7 @@ def create_icmp_packet(pkt_id, seq_num, data_bytes):
 
     return header + data 
 
+#Open a socket, and send an ICMP packet 
 def send_ping(dest_ip, pkt_size, seq_num):
     raw_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
 
@@ -92,6 +95,7 @@ def send_ping(dest_ip, pkt_size, seq_num):
 
     return raw_socket, send_time, pkt_id, seq_num
 
+#Recieve an ICMP packet and extract the required data 
 def rcv_ping(raw_socket, send_time, pkt_id, seq_num):
     pkt_data, ip_address = raw_socket.recvfrom(1024)
     

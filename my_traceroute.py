@@ -5,6 +5,7 @@ import argparse
 def main():
     parser = argparse.ArgumentParser()
 
+    #Create argument values for each required option 
     parser.add_argument("-n", action="store_true")
     parser.add_argument("-q", type=int, default=3)
     parser.add_argument("-S", "--summary", action="store_true")
@@ -19,6 +20,7 @@ def main():
     base_port = 33434
     is_dest_reached = False
 
+    #Loop while under the max amount of hops 
     for ttl in range(1, max_ttl + 1):
         responses = []
         unaswered = 0
@@ -59,7 +61,7 @@ def main():
             break
 
         
-
+#Send a UDP socket 
 def send_probe(udp_socket, ttl, dest_ip, dest_port):
     udp_socket.setsockopt(socket.IPPROTO_IP, socket.IP_TTL, ttl)
 
@@ -69,6 +71,7 @@ def send_probe(udp_socket, ttl, dest_ip, dest_port):
 
     return send_time
 
+#REceive an ICMP socket 
 def rcv_response(icmp_socket, send_time, timeout, dest_ip, dest_port):
     icmp_socket.settimeout(timeout)
 
@@ -76,7 +79,8 @@ def rcv_response(icmp_socket, send_time, timeout, dest_ip, dest_port):
         try:
             pkt_data, ip_address = icmp_socket.recvfrom(1024)
             print("Received packet from:", ip_address[0])
-            
+
+            #Extract data from the ICMP packet received 
             ip_header_length = (pkt_data[0] & 0x0F) * 4
             icmp_header = pkt_data[ip_header_length:ip_header_length + 8]
 
