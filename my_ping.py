@@ -13,7 +13,7 @@ def main():
     parser.add_argument("-i", "--wait", type=float, default=1)
     parser.add_argument("-s", "--size", type=int, default=56)
     parser.add_argument("-t", "--timeout", type=float)
-    parser.add_argument("dest_ip", required=True)
+    parser.add_argument("dest_ip")
 
     args = parser.parse_args()
 

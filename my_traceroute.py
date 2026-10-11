@@ -8,7 +8,7 @@ def main():
     parser.add_argument("-n", action="store_true")
     parser.add_argument("-q", type=int, default=3)
     parser.add_argument("-S", "--summary", action="store_true")
-    parser.add_argument("dest_ip", required=True)
+    parser.add_argument("dest_ip")
     args = parser.parse_args()
 
     dest_ip = socket.gethostbyname(args.dest_ip)
@@ -37,21 +37,31 @@ def main():
                 print("*", end=" ")
             else:
                 response_ip, rtt, dest_reached = receive
-                print(f"{response_ip} {rtt:.2f} ms", end=" ")
+
+                if args.n:
+                    print(f"{response_ip} {rtt:.2f} ms", end=" ")
+                else:
+                    try:
+                        hostname = socket.gethostbyaddr(response_ip)[0]
+                        print(f"{hostname} ({response_ip}) {rtt:.2f} ms", end=" ")
+                    except socket.herror:
+                        print(f"{response_ip} {rtt:.2f} ms", end=" ")
+                        is_dest_reached = True 
+                        
                 if dest_reached:
                     is_dest_reached = True
 
         print()
         if args.summary: 
-            print(f"{unaswered} probes answered")
-            
+            print(f"{unaswered} probes unanswered")
+
         if is_dest_reached:
             break
 
         
 
 def send_probe(udp_socket, ttl, dest_ip, dest_port):
-    udp_socket.setsockopt(socket.SOL_IP, socket.IP_TTL, ttl)
+    udp_socket.setsockopt(socket.IPPROTO_IP, socket.IP_TTL, ttl)
 
     udp_packet = b'\x00'
     send_time = time.monotonic()
@@ -62,39 +72,42 @@ def send_probe(udp_socket, ttl, dest_ip, dest_port):
 def rcv_response(icmp_socket, send_time, timeout, dest_ip, dest_port):
     icmp_socket.settimeout(timeout)
 
-    try:
-        pkt_data, ip_address = icmp_socket.recvfrom(1024)
+    while True:
+        try:
+            pkt_data, ip_address = icmp_socket.recvfrom(1024)
+            print("Received packet from:", ip_address[0])
+            
+            ip_header_length = (pkt_data[0] & 0x0F) * 4
+            icmp_header = pkt_data[ip_header_length:ip_header_length + 8]
 
-        ip_header_length = (pkt_data[0] & 0x0F) * 4
-        icmp_header = pkt_data[ip_header_length:ip_header_length + 8]
+            ip_start = ip_header_length + 8
+            ip_length = (pkt_data[ip_start] & 0x0F) * 4
+            udp_header_start = ip_start + ip_length
 
-        ip_start = ip_header_length + 8
-        ip_length = (pkt_data[ip_start] & 0x0F) * 4
-        udp_header_start = ip_start + ip_length
+            required_dest_port = int.from_bytes(pkt_data[udp_header_start + 2:udp_header_start + 4])
 
-        required_dest_port = int.from_bytes(pkt_data[udp_header_start + 2:udp_header_start + 4])
+            dest_ip_address_rcv = ip_address[0]
+            type = int.from_bytes(icmp_header[0:1])
+            code = int.from_bytes(icmp_header[1:2])
 
-        dest_ip_address_rcv = ip_address[0]
-        type = int.from_bytes(icmp_header[0:1])
-        code = int.from_bytes(icmp_header[1:2])
-        checksum = int.from_bytes(icmp_header[2:4])
-        rcv_id = int.from_bytes(icmp_header[4:6])
-        rec_seq_num = int.from_bytes(icmp_header[6:8])
+            arr_time = time.monotonic()
 
-        arr_time = time.monotonic()
+            dest_reached = (type == 3 and code == 3 and dest_ip_address_rcv == dest_ip)
+            rtt = (arr_time - send_time) * 1000
 
-        dest_reached = (type == 3 and code == 3 and dest_ip_address_rcv == dest_ip)
-        rtt = (arr_time - send_time) * 1000
+            if(type != 11 and not (type == 3 and code == 3)):
+                continue 
 
-        if(type != 11 and not (type == 3 and code == 3)):
-            return None
-
-        if required_dest_port != dest_port:
+            if required_dest_port != dest_port:
+                continue
+            
+            return dest_ip_address_rcv, rtt, dest_reached
+        except socket.timeout:
+            # print("ICMP receive timed out")
             return None 
-        
-        return dest_ip_address_rcv, rtt, dest_reached
-    except socket.timeout:
-        return None
+        except OSError as e:
+            # print("ICMP socket error:", e)
+            return None
 
 if __name__ == "__main__":
     main()
